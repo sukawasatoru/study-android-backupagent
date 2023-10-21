@@ -82,7 +82,7 @@ kotlinx-coroutines-coroutines = { module = "org.jetbrains.kotlinx:kotlinx-corout
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinx-coroutine" }
 kotlinx-serializationJson = "org.jetbrains.kotlinx:kotlinx-serialization-json:1.5.0"
 kotlinResult = "com.michael-bull.kotlin-result:kotlin-result:1.1.16"
-ktor-bom = "io.ktor:ktor-bom:2.2.4"
+ktor-bom = "io.ktor:ktor-bom:2.3.5"
 ktor-contentNegotiation.module = "io.ktor:ktor-client-content-negotiation"
 ktor-core.module = "io.ktor:ktor-client-core"
 ktor-cio.module = "io.ktor:ktor-client-cio"
