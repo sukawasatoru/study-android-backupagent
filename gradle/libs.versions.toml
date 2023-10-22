@@ -15,7 +15,7 @@ hilt = "2.48.1"
 kotlin = "1.9.10"
 kotlinx-coroutine = "1.6.4"
 okhttp = "4.9.3"
-protobuf = "3.22.3"
+protobuf = "3.24.4"
 
 [libraries]
 # for view-system
