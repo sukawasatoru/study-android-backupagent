@@ -12,3 +12,4 @@ updates:
         update-types:
           - "version-update:semver-minor"
           - "version-update:semver-patch"
+    open-pull-requests-limit: 0
