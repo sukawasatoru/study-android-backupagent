@@ -19,7 +19,7 @@ import kotlinx.coroutines.CancellationException
 /**
  * [kotlin.runCatching] considering cancelled.
  */
-suspend fun <R> suspendRunCatching(block: suspend () -> R): Result<R> {
+suspend inline fun <R> suspendRunCatching(crossinline block: suspend () -> R): Result<R> {
     return try {
         Result.success(block())
     } catch (e: CancellationException) {

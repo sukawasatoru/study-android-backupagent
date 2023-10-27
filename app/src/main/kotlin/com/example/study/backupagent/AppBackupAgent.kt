@@ -32,13 +32,18 @@ import java.io.PipedOutputStream
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.time.Instant
+import java.time.ZoneId
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import suspendRunCatching
 
 class AppBackupAgent : BackupAgent() {
+    private val disposables = mutableListOf<Job>()
+
     private lateinit var scope: CoroutineScope
     private lateinit var dispatcherIO: CoroutineDispatcher
 
@@ -60,6 +65,8 @@ class AppBackupAgent : BackupAgent() {
 
     override fun onDestroy() {
         log("[AppBackupAgent][onDestroy]")
+
+        disposables.forEach(Job::cancel)
     }
 
     @Throws(IOException::class)
@@ -115,7 +122,7 @@ class AppBackupAgent : BackupAgent() {
     override fun onQuotaExceeded(backupDataBytes: Long, quotaBytes: Long) {
         log(
             "[AppBackupAgent][onQuotaExceeded] backupDataBytes: $backupDataBytes" +
-                    ", quotaBytes: $quotaBytes"
+                    ", quotaBytes: $quotaBytes",
         )
     }
 
@@ -130,14 +137,16 @@ class AppBackupAgent : BackupAgent() {
     ) {
         log(
             "[AppBackupAgent][onRestoreFile] size: $size" +
-                    ", destination: $destination, type: $type, mode: $mode, mtime: $mtime" +
-                    ", thread: ${Thread.currentThread()}"
+                    ", destination: $destination, type: ${RestoreType.from(type)}" +
+                    ", mode: ${String.format("0%o", mode)}" +
+                    ", mtime: ${Instant.ofEpochSecond(mtime).atZone(ZoneId.systemDefault())}" +
+                    ", thread: ${Thread.currentThread()}",
         )
 
         val pipeErrorFlow = MutableStateFlow<Throwable?>(null)
         val ist = PipedInputStream()
         val ost = PipedOutputStream(ist)
-        scope.launch(dispatcherIO) {
+        disposables += scope.launch(dispatcherIO) {
             log("[AppBackupAgent][onRestoreFile] launch pipe")
             suspendRunCatching {
                 BufferedInputStream(FileInputStream(data.fileDescriptor)).use { fileIstream ->
@@ -145,14 +154,17 @@ class AppBackupAgent : BackupAgent() {
                     var remain = size
 
                     while (0 < remain) {
+                        log("[AppBackupAgent][onRestoreFile] pipe remain: $remain")
+                        ensureActive()
                         val nRead = fileIstream.read(buf, 0, buf.size)
+                        ensureActive()
                         ost.write(buf, 0, nRead)
                         if (nRead == -1) {
                             log("[AppBackupAgent][onRestoreFile] pipe EOF")
                             break
                         }
                         remain -= nRead
-                        log("[AppBackupAgent][onRestoreFile] pipe yield")
+                        ost.flush()
                     }
                     log("[AppBackupAgent][onRestoreFile] pipe close")
                     ost.flush()
@@ -179,5 +191,24 @@ class AppBackupAgent : BackupAgent() {
 
     override fun onRestoreFinished() {
         log("[AppBackupAgent][onRestoreFinished]")
+    }
+
+    enum class RestoreType {
+        EOF,
+        File,
+        Directory,
+        Symlink;
+
+        companion object {
+            fun from(type: Int): RestoreType? {
+                return when (type) {
+                    0 -> EOF
+                    TYPE_FILE -> File
+                    TYPE_DIRECTORY -> Directory
+                    3 -> Symlink
+                    else -> null
+                }
+            }
+        }
     }
 }
